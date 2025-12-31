@@ -13,7 +13,7 @@
       "author": {
         "name": "ymmt"
       },
-      "source": ".",
+      "source": "./plugins/manim-video-creator",
       "category": "development"
     }
   ]
