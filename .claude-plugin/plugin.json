@@ -1,0 +1,8 @@
+{
+  "name": "manim-video-creator",
+  "version": "0.1.0",
+  "description": "Manim（Mathematical Animation Engine）を使用してTTSナレーション・BGM付きのアニメーション動画を作成するプラグイン",
+  "author": {
+    "name": "ymmt"
+  }
+}
