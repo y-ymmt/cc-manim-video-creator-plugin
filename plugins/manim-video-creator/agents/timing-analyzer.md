@@ -20,7 +20,8 @@ whenToUse: |
   user: "I want to make sure everything is synced before the final render"
   assistant: "I'll use the timing-analyzer agent to perform a comprehensive timing check before your final render."
   </example>
-model: sonnet
+model: opus
+color: green
 tools:
   - Read
   - Bash

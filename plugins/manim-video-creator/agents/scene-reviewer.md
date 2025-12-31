@@ -19,7 +19,8 @@ whenToUse: |
   user: "I think the scene is ready to render"
   assistant: "Before rendering, let me use the scene-reviewer agent to check for any timing issues or improvements."
   </example>
-model: sonnet
+model: opus
+color: blue
 tools:
   - Read
   - Glob
