@@ -54,6 +54,11 @@ Manimシーンファイルをレビューし、ベストプラクティスへの
    - 累計時間の追跡
    - wait() 計算の正確性
 
+5. **視覚的品質（重なり・はみ出しチェック）**
+   - テキストやオブジェクトが互いに重なっていないか
+   - 要素が画面境界からはみ出していないか
+   - 適切なバッファ（余白）が確保されているか
+
 ## チェックリスト
 
 ```
@@ -65,6 +70,8 @@ Manimシーンファイルをレビューし、ベストプラクティスへの
 [ ] カラーパレットが定義されている
 [ ] 画面端のマージンが確保されている
 [ ] FadeOut で画面がクリアされている
+[ ] テキスト・オブジェクトの重なりがない
+[ ] 要素が画面境界からはみ出していない
 ```
 
 ## 出力形式
@@ -85,4 +92,149 @@ Manimシーンファイルをレビューし、ベストプラクティスへの
 1. セクション2の wait() を 2秒から 3秒に変更
 2. ファイル先頭にフォント設定のコメントを追加
 
+**視覚的品質**:
+- 重なりチェック: 問題なし / 要確認
+- はみ出しチェック: 問題なし / 要確認
+
 **総合評価**: 良好 / 要修正 / 問題あり
+
+---
+
+## 視覚的品質チェックの詳細ガイド
+
+### 1. テキスト・オブジェクトの重なり検出
+
+以下のパターンを確認し、オブジェクトが同じ位置に配置されていないかチェックする：
+
+#### 危険なパターン（重なりの可能性が高い）
+
+```python
+# 同じ位置に複数のオブジェクトを配置
+text1.move_to(ORIGIN)
+text2.move_to(ORIGIN)  # ⚠️ 重なり！
+
+# next_to() で buff=0 の場合
+item.next_to(title, DOWN, buff=0)  # ⚠️ 接触の可能性
+
+# VGroup の要素が適切に配置されていない
+group = VGroup(text1, text2)  # arrange() がない場合は重なる可能性
+```
+
+#### 安全なパターン
+
+```python
+# next_to() で適切なバッファを確保
+subtitle.next_to(title, DOWN, buff=0.5)  # ✓ 十分な間隔
+
+# VGroup で arrange() を使用
+group = VGroup(text1, text2, text3).arrange(DOWN, buff=0.3)  # ✓ 自動配置
+
+# 明示的に異なる位置を指定
+title.to_edge(UP, buff=0.5)
+content.move_to(ORIGIN)
+footer.to_edge(DOWN, buff=0.5)  # ✓ 明確に分離
+```
+
+#### 確認すべき項目
+
+1. **同時に表示されるオブジェクト**: FadeOut される前に新しいオブジェクトが追加される場合
+2. **VGroup 内の要素**: `arrange()` が使われているか
+3. **テキストサイズ**: 大きなフォントサイズ（48以上）の場合は特に注意
+4. **`buff` パラメータ**: 最低でも 0.3 以上を推奨
+
+### 2. 画面境界からのはみ出し検出
+
+Manimの標準画面境界は以下の通り（16:9の場合）：
+- 横: -7.1 ～ +7.1（frame_width / 2）
+- 縦: -4.0 ～ +4.0（frame_height / 2）
+
+#### 危険なパターン（はみ出しの可能性が高い）
+
+```python
+# 大きなオブジェクトを端に配置
+large_text = Text("長いテキスト文字列", font_size=72)
+large_text.to_edge(RIGHT)  # ⚠️ はみ出す可能性
+
+# shift() で画面外に移動
+obj.shift(RIGHT * 8)  # ⚠️ 画面外（7.1以上）
+
+# scale() 後に位置調整なし
+box.scale(3)  # ⚠️ 元の位置でスケールすると境界を超える可能性
+
+# to_edge() で buff が小さすぎる
+title.to_edge(UP, buff=0.1)  # ⚠️ マージン不足
+```
+
+#### 安全なパターン
+
+```python
+# to_edge() で適切なバッファ
+title.to_edge(UP, buff=0.5)  # ✓ 標準的なマージン
+
+# 長いテキストにはフォントサイズを調整
+long_text = Text("非常に長いテキスト...", font_size=24)  # ✓ 小さめのサイズ
+
+# scale_to_fit_width() で画面内に収める
+obj.scale_to_fit_width(config.frame_width - 2)  # ✓ 両端1ユニットの余白
+
+# 動的な位置調整
+if obj.get_width() > 10:
+    obj.scale_to_fit_width(10)  # ✓ 条件付きスケーリング
+```
+
+#### 確認すべき項目
+
+1. **`to_edge()` の buff 値**: 0.5 以上を推奨
+2. **`shift()` の値**: 6.5以上の移動は要注意
+3. **大きなフォントサイズ**: 48以上の場合、テキスト長に注意
+4. **`scale()` 後の位置**: 拡大後に画面内に収まるか
+5. **日本語テキスト**: 同じ文字数でも英語より幅が広くなる
+
+### 3. よくある問題と修正例
+
+#### 問題1: 箇条書きの重なり
+
+```python
+# 問題のあるコード
+points = VGroup(
+    Text("ポイント1"),
+    Text("ポイント2"),
+    Text("ポイント3"),
+)
+points.move_to(ORIGIN)  # ⚠️ 全て同じ位置
+
+# 修正後
+points = VGroup(
+    Text("ポイント1"),
+    Text("ポイント2"),
+    Text("ポイント3"),
+).arrange(DOWN, aligned_edge=LEFT, buff=0.4)  # ✓ 縦に配置
+points.move_to(ORIGIN)
+```
+
+#### 問題2: タイトルとコンテンツの重なり
+
+```python
+# 問題のあるコード
+title = Text("タイトル", font_size=48)
+content = Text("内容", font_size=32)
+# 両方とも中央に配置される ⚠️
+
+# 修正後
+title = Text("タイトル", font_size=48)
+title.to_edge(UP, buff=0.5)  # ✓ 上端に配置
+content = Text("内容", font_size=32)
+content.next_to(title, DOWN, buff=0.8)  # ✓ タイトルの下に配置
+```
+
+#### 問題3: 長いテキストのはみ出し
+
+```python
+# 問題のあるコード
+long_text = Text("これは非常に長いテキストで画面からはみ出す可能性があります", font_size=36)
+
+# 修正後
+long_text = Text("これは非常に長いテキストで画面からはみ出す可能性があります", font_size=28)
+if long_text.get_width() > config.frame_width - 1:
+    long_text.scale_to_fit_width(config.frame_width - 1)  # ✓ 画面幅に収める
+```
