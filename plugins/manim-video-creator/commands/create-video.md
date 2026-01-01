@@ -48,6 +48,31 @@ TTSナレーション・BGM付きのManimアニメーション動画を作成す
 - Instagram投稿（1:1, 1080x1080）
 - カスタム
 
+### 質問6: エンディング動画（オプション）
+- エンディング動画を追加する
+- エンディング動画なし
+
+## エンディング動画のディレクトリ構成
+
+エンディング動画は**プラグイン内に共通配置**し、すべてのmanimプロジェクトで共有する：
+
+```
+${CLAUDE_PLUGIN_ROOT}/
+└── endings/
+    ├── 16_9/    # YouTube用（1920x1080）
+    │   └── ending.mp4
+    ├── 9_16/    # Shorts/TikTok用（1080x1920）
+    │   └── ending.mp4
+    └── 1_1/     # Instagram用（1080x1080）
+        └── ending.mp4
+```
+
+**注意:**
+- `${CLAUDE_PLUGIN_ROOT}` はプラグインのルートディレクトリ
+- 各アスペクト比に対応したエンディング動画を事前に作成しておく
+- ファイル名は `ending.mp4` 固定
+- 対応するアスペクト比のエンディング動画がない場合はスキップされる
+
 ## ステップ2: コンテンツ確認
 
 ユーザーから動画の内容について詳細を確認：
@@ -158,13 +183,78 @@ uv run manim -qh scene.py MyScene --disable_caching
 2. BGM生成（必要な場合）
 3. ナレーションとBGMを合成
 
-## ステップ8: 最終合成
+## ステップ8: 最終合成（エンディング動画結合を含む）
+
+### 8-1: 動画と音声の合成
 
 ```bash
 ffmpeg -i video.mp4 -i combined_audio.mp3 \
   -c:v copy -c:a aac -b:a 192k \
   -map 0:v:0 -map 1:a:0 \
-  -shortest -y final_output.mp4
+  -shortest -y main_with_audio.mp4
+```
+
+### 8-2: エンディング動画の結合（オプション）
+
+ユーザーがエンディング動画を追加する場合のみ実行：
+
+1. **動画のアスペクト比を判定**
+
+```bash
+# 動画の幅と高さを取得
+WIDTH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 main_with_audio.mp4)
+HEIGHT=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 main_with_audio.mp4)
+
+# アスペクト比を計算して適切なディレクトリを選択
+# WIDTH > HEIGHT → 16:9 (横長)
+# WIDTH < HEIGHT → 9:16 (縦長)
+# WIDTH == HEIGHT → 1:1 (正方形)
+```
+
+2. **アスペクト比に基づいてエンディング動画を選択**
+
+| メイン動画 | エンディング動画パス |
+|------------|----------------------|
+| 横長 (16:9) | `${CLAUDE_PLUGIN_ROOT}/endings/16_9/ending.mp4` |
+| 縦長 (9:16) | `${CLAUDE_PLUGIN_ROOT}/endings/9_16/ending.mp4` |
+| 正方形 (1:1) | `${CLAUDE_PLUGIN_ROOT}/endings/1_1/ending.mp4` |
+
+3. **動画の結合**
+
+```bash
+# プラグインルートからエンディング動画のパスを設定
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
+ENDING_PATH="${PLUGIN_ROOT}/endings/${ASPECT_DIR}/ending.mp4"
+
+# エンディング動画が存在する場合のみ実行
+if [ -f "$ENDING_PATH" ]; then
+  # 結合用のリストファイルを作成
+  echo "file 'main_with_audio.mp4'" > concat_list.txt
+  echo "file '$ENDING_PATH'" >> concat_list.txt
+
+  # 動画を結合
+  ffmpeg -f concat -safe 0 -i concat_list.txt \
+    -c copy -y final_output.mp4
+
+  # クリーンアップ
+  rm concat_list.txt main_with_audio.mp4
+else
+  # エンディング動画がない場合はそのまま使用
+  mv main_with_audio.mp4 final_output.mp4
+  echo "警告: 対応するエンディング動画が見つかりませんでした: $ENDING_PATH"
+fi
+```
+
+**注意:**
+- メイン動画とエンディング動画のコーデック・解像度・フレームレートが一致している必要がある
+- 一致しない場合は再エンコードが必要（処理時間が長くなる）
+
+```bash
+# 再エンコードが必要な場合
+ffmpeg -f concat -safe 0 -i concat_list.txt \
+  -c:v libx264 -preset medium -crf 18 \
+  -c:a aac -b:a 192k \
+  -y final_output.mp4
 ```
 
 ## ステップ9: 完了報告

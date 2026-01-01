@@ -663,6 +663,113 @@ if __name__ == "__main__":
 
 ---
 
+## エンディング動画の結合
+
+### ディレクトリ構成
+
+エンディング動画は**プラグイン内に共通配置**し、すべてのmanimプロジェクトで共有する：
+
+```
+${CLAUDE_PLUGIN_ROOT}/
+└── endings/
+    ├── 16_9/    # YouTube用（1920x1080）
+    │   └── ending.mp4
+    ├── 9_16/    # Shorts/TikTok用（1080x1920）
+    │   └── ending.mp4
+    └── 1_1/     # Instagram用（1080x1080）
+        └── ending.mp4
+```
+
+**注意:** `${CLAUDE_PLUGIN_ROOT}` はプラグインのルートディレクトリ（環境変数として利用可能）
+
+### エンディング動画結合スクリプト
+
+```python
+# concat_ending.py
+import subprocess
+import os
+import sys
+
+def get_video_dimensions(video_path):
+    """動画の幅と高さを取得"""
+    result = subprocess.run([
+        "ffprobe", "-v", "error",
+        "-select_streams", "v:0",
+        "-show_entries", "stream=width,height",
+        "-of", "csv=p=0",
+        video_path
+    ], capture_output=True, text=True)
+    width, height = map(int, result.stdout.strip().split(','))
+    return width, height
+
+def get_aspect_ratio_dir(width, height):
+    """アスペクト比に基づいてディレクトリ名を返す"""
+    if width > height:
+        return "16_9"
+    elif width < height:
+        return "9_16"
+    else:
+        return "1_1"
+
+def concat_with_ending(main_video, plugin_root=None):
+    """メイン動画とエンディング動画を結合
+
+    Args:
+        main_video: メイン動画のパス
+        plugin_root: プラグインのルートディレクトリ（指定しない場合は環境変数から取得）
+    """
+    # プラグインルートを取得
+    if plugin_root is None:
+        plugin_root = os.environ.get("CLAUDE_PLUGIN_ROOT", ".")
+
+    endings_dir = os.path.join(plugin_root, "endings")
+
+    width, height = get_video_dimensions(main_video)
+    aspect_dir = get_aspect_ratio_dir(width, height)
+    ending_path = os.path.join(endings_dir, aspect_dir, "ending.mp4")
+
+    if not os.path.exists(ending_path):
+        print(f"警告: エンディング動画が見つかりません: {ending_path}")
+        print("エンディング動画なしで続行します")
+        return main_video
+
+    # 結合リストを作成
+    with open("concat_list.txt", "w") as f:
+        f.write(f"file '{os.path.abspath(main_video)}'\n")
+        f.write(f"file '{os.path.abspath(ending_path)}'\n")
+
+    output_path = main_video.replace(".mp4", "_with_ending.mp4")
+
+    # 動画を結合（同じコーデックの場合は高速）
+    subprocess.run([
+        "ffmpeg", "-f", "concat", "-safe", "0",
+        "-i", "concat_list.txt",
+        "-c", "copy", "-y", output_path
+    ])
+
+    os.remove("concat_list.txt")
+    print(f"完成: {output_path}")
+    return output_path
+
+if __name__ == "__main__":
+    main_video = sys.argv[1] if len(sys.argv) > 1 else "final_output.mp4"
+    concat_with_ending(main_video)
+```
+
+### 注意事項
+
+- メイン動画とエンディング動画のコーデック・解像度・フレームレートを一致させる
+- 不一致の場合は再エンコードが必要：
+
+```bash
+ffmpeg -f concat -safe 0 -i concat_list.txt \
+  -c:v libx264 -preset medium -crf 18 \
+  -c:a aac -b:a 192k \
+  -y final_with_ending.mp4
+```
+
+---
+
 ## デザインガイドライン
 
 ### 推奨カラーパレット
