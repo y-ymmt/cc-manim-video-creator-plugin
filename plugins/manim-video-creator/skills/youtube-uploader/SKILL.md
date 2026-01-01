@@ -28,6 +28,41 @@ pip3 install google-auth-oauthlib google-api-python-client
 
 ---
 
+## credentials.json の配置場所
+
+**重要**: `credentials.json` は以下の優先順位で自動検索されます。明示的に `--credentials` オプションを指定しなくても、以下の場所に配置されていれば自動的に使用されます。
+
+### 検索優先順位
+
+| 優先度 | 場所 | パス |
+|--------|------|------|
+| 1 | 明示的指定 | `--credentials /path/to/credentials.json` |
+| 2 | プロジェクトディレクトリ | `./credentials.json` |
+| 3 | ホームディレクトリ | `~/credentials.json` |
+| 4 | 設定ディレクトリ | `~/.config/youtube/credentials.json` |
+| 5 | プラグインディレクトリ | `${CLAUDE_PLUGIN_ROOT}/credentials.json` |
+
+### 推奨配置場所
+
+```bash
+# 個人用（全プロジェクト共通）- 推奨
+~/.config/youtube/credentials.json
+
+# または
+~/credentials.json
+
+# プロジェクト固有の認証情報
+./credentials.json
+```
+
+### 注意事項
+
+- `token.json`（認証トークン）は `credentials.json` と同じディレクトリに自動生成されます
+- `.gitignore` に `credentials.json` と `token.json` を追加してください
+- 複数の場所に `credentials.json` がある場合、優先度の高い場所のファイルが使用されます
+
+---
+
 ## アップロード前の確認事項
 
 動画をアップロードする前に、以下を確認してください：

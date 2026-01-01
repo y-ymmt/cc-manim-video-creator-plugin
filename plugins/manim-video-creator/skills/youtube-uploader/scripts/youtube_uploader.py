@@ -39,13 +39,87 @@ from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 
 
+def find_credentials_file(explicit_path: Optional[str] = None) -> str:
+    """
+    Find credentials.json file with the following priority:
+    1. Explicitly specified path (--credentials option)
+    2. Current project directory: ./credentials.json
+    3. Home directory: ~/credentials.json
+    4. Config directory: ~/.config/youtube/credentials.json
+    5. Plugin directory: ${CLAUDE_PLUGIN_ROOT}/credentials.json
+
+    Returns:
+        Path to the credentials file
+
+    Raises:
+        FileNotFoundError: If no credentials file is found
+    """
+    search_paths = []
+
+    # 1. Explicitly specified path
+    if explicit_path and explicit_path != "credentials.json":
+        if os.path.exists(explicit_path):
+            print(f"Using specified credentials: {explicit_path}")
+            return explicit_path
+        search_paths.append(explicit_path)
+
+    # 2. Current project directory
+    project_creds = Path("./credentials.json")
+    if project_creds.exists():
+        print(f"Using project credentials: {project_creds.absolute()}")
+        return str(project_creds.absolute())
+    search_paths.append(str(project_creds))
+
+    # 3. Home directory
+    home_creds = Path.home() / "credentials.json"
+    if home_creds.exists():
+        print(f"Using home directory credentials: {home_creds}")
+        return str(home_creds)
+    search_paths.append(str(home_creds))
+
+    # 4. Config directory
+    config_creds = Path.home() / ".config" / "youtube" / "credentials.json"
+    if config_creds.exists():
+        print(f"Using config directory credentials: {config_creds}")
+        return str(config_creds)
+    search_paths.append(str(config_creds))
+
+    # Also check for client_secrets.json in config directory
+    config_secrets = Path.home() / ".config" / "youtube" / "client_secrets.json"
+    if config_secrets.exists():
+        print(f"Using config directory credentials: {config_secrets}")
+        return str(config_secrets)
+    search_paths.append(str(config_secrets))
+
+    # 5. Plugin directory (via CLAUDE_PLUGIN_ROOT environment variable)
+    plugin_root = os.environ.get("CLAUDE_PLUGIN_ROOT")
+    if plugin_root:
+        plugin_creds = Path(plugin_root) / "credentials.json"
+        if plugin_creds.exists():
+            print(f"Using plugin directory credentials: {plugin_creds}")
+            return str(plugin_creds)
+        search_paths.append(str(plugin_creds))
+
+    # No credentials found
+    raise FileNotFoundError(
+        f"credentials.json not found in any of the following locations:\n"
+        + "\n".join(f"  - {p}" for p in search_paths)
+        + "\n\nPlease place credentials.json in one of these locations:\n"
+        + "  1. Current project directory: ./credentials.json\n"
+        + "  2. Home directory: ~/credentials.json\n"
+        + "  3. Config directory: ~/.config/youtube/credentials.json\n"
+        + "  4. Plugin directory: ${CLAUDE_PLUGIN_ROOT}/credentials.json\n"
+        + "\nOr specify the path with --credentials option."
+    )
+
+
 class YouTubeUploader:
     """Handles YouTube video uploads with OAuth 2.0 authentication"""
-    
+
     API_SERVICE_NAME = "youtube"
     API_VERSION = "v3"
     SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
-    
+
     # YouTube category IDs
     CATEGORY_IDS = {
         "film": "1",
@@ -63,7 +137,7 @@ class YouTubeUploader:
         "education": "27",
         "science": "28",
     }
-    
+
     def __init__(self, credentials_file: str):
         """Initialize uploader with credentials file"""
         self.credentials_file = credentials_file
@@ -282,13 +356,16 @@ Examples:
 def main():
     """Main entry point"""
     args = parse_args()
-    
+
     try:
         # Parse tags
         tags = [tag.strip() for tag in args.tags.split(",")] if args.tags else []
-        
+
+        # Find credentials file (auto-search if not explicitly specified)
+        credentials_path = find_credentials_file(args.credentials)
+
         # Initialize uploader
-        uploader = YouTubeUploader(args.credentials)
+        uploader = YouTubeUploader(credentials_path)
         
         # Upload video
         video_id = uploader.upload(

@@ -667,7 +667,16 @@ if __name__ == "__main__":
 
 ### ディレクトリ構成と検索優先順位
 
-エンディング動画は**以下の優先順位**で検索される：
+> **重要**: エンディング動画は自動検索されます。ユーザーにパスを聞く必要はありません。
+
+エンディング動画は**以下の優先順位**で自動検索されます：
+
+| 優先度 | 場所 | パス |
+|--------|------|------|
+| 1 | プロジェクトディレクトリ | `./endings/{aspect_dir}/ending.mp4` |
+| 2 | プラグインディレクトリ | `${CLAUDE_PLUGIN_ROOT}/endings/{aspect_dir}/ending.mp4` |
+
+※ `{aspect_dir}` は動画のアスペクト比に応じて `16_9`、`9_16`、`1_1` のいずれか
 
 #### 1. プロジェクトディレクトリ（優先）
 
@@ -699,10 +708,21 @@ ${CLAUDE_PLUGIN_ROOT}/
         └── ending.mp4
 ```
 
+### CLAUDE_PLUGIN_ROOT 環境変数
+
+`CLAUDE_PLUGIN_ROOT` はClaude Codeによって自動的に設定される環境変数で、プラグインのルートディレクトリを指します。
+
+```bash
+# 環境変数の確認
+echo $CLAUDE_PLUGIN_ROOT
+
+# 例: ~/.claude/plugins/marketplaces/manim-video-creator/plugins/manim-video-creator
+```
+
 **注意:**
-- `${CLAUDE_PLUGIN_ROOT}` はプラグインのルートディレクトリ（環境変数として利用可能）
 - プロジェクト固有のエンディングがある場合は `./endings/` に配置
 - 共通のエンディングは `${CLAUDE_PLUGIN_ROOT}/endings/` に配置
+- どちらにもエンディングがない場合は、エンディングなしで動画を出力
 
 ### エンディング動画結合スクリプト
 
