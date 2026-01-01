@@ -665,9 +665,28 @@ if __name__ == "__main__":
 
 ## エンディング動画の結合
 
-### ディレクトリ構成
+### ディレクトリ構成と検索優先順位
 
-エンディング動画は**プラグイン内に共通配置**し、すべてのmanimプロジェクトで共有する：
+エンディング動画は**以下の優先順位**で検索される：
+
+#### 1. プロジェクトディレクトリ（優先）
+
+プロジェクト固有のエンディング動画がある場合：
+
+```
+./                          # 現在のmanimプロジェクトディレクトリ
+└── endings/
+    ├── 16_9/
+    │   └── ending.mp4
+    ├── 9_16/
+    │   └── ending.mp4
+    └── 1_1/
+        └── ending.mp4
+```
+
+#### 2. プラグインディレクトリ（フォールバック）
+
+プロジェクトにエンディング動画がない場合、共通のエンディング動画を使用：
 
 ```
 ${CLAUDE_PLUGIN_ROOT}/
@@ -680,7 +699,10 @@ ${CLAUDE_PLUGIN_ROOT}/
         └── ending.mp4
 ```
 
-**注意:** `${CLAUDE_PLUGIN_ROOT}` はプラグインのルートディレクトリ（環境変数として利用可能）
+**注意:**
+- `${CLAUDE_PLUGIN_ROOT}` はプラグインのルートディレクトリ（環境変数として利用可能）
+- プロジェクト固有のエンディングがある場合は `./endings/` に配置
+- 共通のエンディングは `${CLAUDE_PLUGIN_ROOT}/endings/` に配置
 
 ### エンディング動画結合スクリプト
 
@@ -711,6 +733,37 @@ def get_aspect_ratio_dir(width, height):
     else:
         return "1_1"
 
+def find_ending_video(aspect_dir, plugin_root=None):
+    """エンディング動画を検索（プロジェクト優先、プラグインフォールバック）
+
+    Args:
+        aspect_dir: アスペクト比ディレクトリ名（16_9, 9_16, 1_1）
+        plugin_root: プラグインのルートディレクトリ
+
+    Returns:
+        エンディング動画のパス、見つからない場合はNone
+    """
+    # 1. プロジェクトディレクトリを優先
+    project_ending = os.path.join(".", "endings", aspect_dir, "ending.mp4")
+    if os.path.exists(project_ending):
+        print(f"プロジェクトのエンディング動画を使用: {project_ending}")
+        return project_ending
+
+    # 2. プラグインディレクトリをフォールバック
+    if plugin_root is None:
+        plugin_root = os.environ.get("CLAUDE_PLUGIN_ROOT", ".")
+
+    plugin_ending = os.path.join(plugin_root, "endings", aspect_dir, "ending.mp4")
+    if os.path.exists(plugin_ending):
+        print(f"プラグインのエンディング動画を使用: {plugin_ending}")
+        return plugin_ending
+
+    # どちらにも見つからない
+    print(f"警告: エンディング動画が見つかりませんでした")
+    print(f"  - プロジェクト: {project_ending}")
+    print(f"  - プラグイン: {plugin_ending}")
+    return None
+
 def concat_with_ending(main_video, plugin_root=None):
     """メイン動画とエンディング動画を結合
 
@@ -718,18 +771,13 @@ def concat_with_ending(main_video, plugin_root=None):
         main_video: メイン動画のパス
         plugin_root: プラグインのルートディレクトリ（指定しない場合は環境変数から取得）
     """
-    # プラグインルートを取得
-    if plugin_root is None:
-        plugin_root = os.environ.get("CLAUDE_PLUGIN_ROOT", ".")
-
-    endings_dir = os.path.join(plugin_root, "endings")
-
     width, height = get_video_dimensions(main_video)
     aspect_dir = get_aspect_ratio_dir(width, height)
-    ending_path = os.path.join(endings_dir, aspect_dir, "ending.mp4")
 
-    if not os.path.exists(ending_path):
-        print(f"警告: エンディング動画が見つかりません: {ending_path}")
+    # エンディング動画を検索（プロジェクト優先）
+    ending_path = find_ending_video(aspect_dir, plugin_root)
+
+    if ending_path is None:
         print("エンディング動画なしで続行します")
         return main_video
 

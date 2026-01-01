@@ -16,45 +16,120 @@ TTSナレーション・BGM付きのManimアニメーション動画を作成す
 
 ## ステップ1: ヒアリング
 
-`AskUserQuestion` ツールを使用して以下の情報を収集する：
+**重要**: 動画作成を開始する前に、**必ず** `AskUserQuestion` ツールを使用して以下の情報を収集すること。
 
-### 質問1: 動画の種類
-- 解説・教育動画（論文解説、チュートリアル等）
-- プレゼンテーション動画
-- ロゴアニメーション
-- インフォグラフィック・データ可視化
-- アルゴリズム・コード可視化
-- その他
+```
+AskUserQuestion ツールを以下のパラメータで呼び出す：
 
-### 質問2: 作成範囲
-- Manim動画のみ（音声なし）
-- Manim動画 + 台本
-- フル版（Manim + TTSナレーション + BGM）
+questions:
+  - question: "どのような種類の動画を作成しますか？"
+    header: "動画種類"
+    multiSelect: false
+    options:
+      - label: "解説・教育動画"
+        description: "論文解説、チュートリアル、概念説明など"
+      - label: "プレゼンテーション動画"
+        description: "スライド形式のプレゼン動画"
+      - label: "ロゴアニメーション"
+        description: "ロゴや短いモーショングラフィック"
+      - label: "アルゴリズム・コード可視化"
+        description: "アルゴリズムやデータ構造の動的可視化"
 
-### 質問3: ナレーション音声（フル版の場合）
-- 日本語女性（ja-JP-NanamiNeural）- 推奨
-- 日本語男性（ja-JP-KeitaNeural）
-- 英語女性（en-US-JennyNeural）
-- 英語男性（en-US-GuyNeural）
+  - question: "作成範囲を選択してください"
+    header: "作成範囲"
+    multiSelect: false
+    options:
+      - label: "フル版（Manim + TTSナレーション + BGM）"
+        description: "動画、音声、BGMすべてを含む完全版（推奨）"
+      - label: "Manim動画 + 台本"
+        description: "動画と台本のみ、音声は別途追加"
+      - label: "Manim動画のみ"
+        description: "音声なしのアニメーション動画のみ"
 
-### 質問4: BGMの種類（フル版の場合）
-- 自動生成（アンビエント）- 著作権フリー
-- BGMなし
-- 外部BGMを後から追加
+  - question: "どのプラットフォーム向けに作成しますか？"
+    header: "プラットフォーム"
+    multiSelect: false
+    options:
+      - label: "YouTube（16:9, 1920x1080）"
+        description: "標準的なYouTube動画向け（推奨）"
+      - label: "YouTube Shorts/TikTok（9:16, 1080x1920）"
+        description: "縦長のショート動画向け"
+      - label: "Instagram投稿（1:1, 1080x1080）"
+        description: "正方形のInstagram投稿向け"
 
-### 質問5: プラットフォーム/アスペクト比
-- YouTube（16:9, 1920x1080）- 推奨
-- YouTube Shorts/TikTok（9:16, 1080x1920）
-- Instagram投稿（1:1, 1080x1080）
-- カスタム
+  - question: "エンディング動画を追加しますか？"
+    header: "エンディング"
+    multiSelect: false
+    options:
+      - label: "エンディング動画を追加する（推奨）"
+        description: "プロジェクトまたはプラグインのendingsディレクトリから自動選択"
+      - label: "エンディング動画なし"
+        description: "メイン動画のみで終了"
+```
 
-### 質問6: エンディング動画（オプション）
-- エンディング動画を追加する
-- エンディング動画なし
+**フル版選択時のみ追加で確認:**
+
+```
+questions:
+  - question: "ナレーション音声を選択してください"
+    header: "音声"
+    multiSelect: false
+    options:
+      - label: "日本語女性（ja-JP-NanamiNeural）"
+        description: "明瞭で聞きやすい日本語女性音声（推奨）"
+      - label: "日本語男性（ja-JP-KeitaNeural）"
+        description: "落ち着いた日本語男性音声"
+      - label: "英語女性（en-US-JennyNeural）"
+        description: "ナチュラルな英語女性音声"
+
+  - question: "BGMの種類を選択してください"
+    header: "BGM"
+    multiSelect: false
+    options:
+      - label: "自動生成（アンビエント）"
+        description: "著作権フリーのアンビエントBGMを自動生成"
+      - label: "BGMなし"
+        description: "ナレーションのみ"
+      - label: "外部BGMを後から追加"
+        description: "動画作成後に別途BGMを追加"
+```
+
+### ヒアリング結果の記録
+
+ヒアリングで得た回答を以下の形式で記録し、後続のステップで参照する：
+
+```
+【ヒアリング結果】
+- 動画種類: [解説・教育動画 / プレゼン / ロゴ / アルゴリズム可視化]
+- 作成範囲: [フル版 / 動画+台本 / 動画のみ]
+- プラットフォーム: [YouTube 16:9 / Shorts 9:16 / Instagram 1:1]
+- エンディング動画: [追加する / なし]  ← ステップ8で使用
+- ナレーション音声: [音声ID]（フル版のみ）
+- BGM: [自動生成 / なし / 外部]（フル版のみ）
+```
 
 ## エンディング動画のディレクトリ構成
 
-エンディング動画は**プラグイン内に共通配置**し、すべてのmanimプロジェクトで共有する：
+エンディング動画は**以下の優先順位**で検索される：
+
+### 1. プロジェクトディレクトリ（優先）
+
+現在のmanimプロジェクトディレクトリに `endings/` フォルダがある場合、そちらを優先使用：
+
+```
+./                          # 現在のプロジェクトディレクトリ
+└── endings/
+    ├── 16_9/
+    │   └── ending.mp4
+    ├── 9_16/
+    │   └── ending.mp4
+    └── 1_1/
+        └── ending.mp4
+```
+
+### 2. プラグインディレクトリ（フォールバック）
+
+プロジェクトにエンディング動画がない場合、プラグインディレクトリから取得：
 
 ```
 ${CLAUDE_PLUGIN_ROOT}/
@@ -68,10 +143,11 @@ ${CLAUDE_PLUGIN_ROOT}/
 ```
 
 **注意:**
-- `${CLAUDE_PLUGIN_ROOT}` はプラグインのルートディレクトリ
+- プロジェクト固有のエンディングがある場合は `./endings/` に配置
+- 共通のエンディングは `${CLAUDE_PLUGIN_ROOT}/endings/` に配置
 - 各アスペクト比に対応したエンディング動画を事前に作成しておく
 - ファイル名は `ending.mp4` 固定
-- 対応するアスペクト比のエンディング動画がない場合はスキップされる
+- どちらにもエンディング動画がない場合はスキップされる
 
 ## ステップ2: コンテンツ確認
 
@@ -194,9 +270,18 @@ ffmpeg -i video.mp4 -i combined_audio.mp3 \
   -shortest -y main_with_audio.mp4
 ```
 
-### 8-2: エンディング動画の結合（オプション）
+### 8-2: エンディング動画の結合
 
-ユーザーがエンディング動画を追加する場合のみ実行：
+**重要**: ステップ1のヒアリングで「エンディング動画を追加する」を選択した場合のみ実行する。
+
+```
+【ヒアリング結果の確認】
+ステップ1で記録した「エンディング動画」の回答を確認：
+- 「追加する」の場合 → 以下の処理を実行
+- 「なし」の場合 → このステップをスキップし、main_with_audio.mp4 を final_output.mp4 としてリネーム
+```
+
+#### エンディング動画の結合手順
 
 1. **動画のアスペクト比を判定**
 
@@ -205,32 +290,52 @@ ffmpeg -i video.mp4 -i combined_audio.mp3 \
 WIDTH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 main_with_audio.mp4)
 HEIGHT=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 main_with_audio.mp4)
 
-# アスペクト比を計算して適切なディレクトリを選択
-# WIDTH > HEIGHT → 16:9 (横長)
-# WIDTH < HEIGHT → 9:16 (縦長)
-# WIDTH == HEIGHT → 1:1 (正方形)
+# アスペクト比を判定
+if [ "$WIDTH" -gt "$HEIGHT" ]; then
+  ASPECT_DIR="16_9"
+elif [ "$WIDTH" -lt "$HEIGHT" ]; then
+  ASPECT_DIR="9_16"
+else
+  ASPECT_DIR="1_1"
+fi
 ```
 
-2. **アスペクト比に基づいてエンディング動画を選択**
+2. **エンディング動画を検索（優先順位順）**
 
-| メイン動画 | エンディング動画パス |
-|------------|----------------------|
-| 横長 (16:9) | `${CLAUDE_PLUGIN_ROOT}/endings/16_9/ending.mp4` |
-| 縦長 (9:16) | `${CLAUDE_PLUGIN_ROOT}/endings/9_16/ending.mp4` |
-| 正方形 (1:1) | `${CLAUDE_PLUGIN_ROOT}/endings/1_1/ending.mp4` |
+以下の順序でエンディング動画を探す：
+
+| 優先度 | 検索場所 | パス |
+|--------|----------|------|
+| 1 | プロジェクトディレクトリ | `./endings/${ASPECT_DIR}/ending.mp4` |
+| 2 | プラグインディレクトリ | `${CLAUDE_PLUGIN_ROOT}/endings/${ASPECT_DIR}/ending.mp4` |
+
+```bash
+# エンディング動画のパスを決定（プロジェクト優先、プラグインフォールバック）
+PROJECT_ENDING="./endings/${ASPECT_DIR}/ending.mp4"
+PLUGIN_ENDING="${CLAUDE_PLUGIN_ROOT}/endings/${ASPECT_DIR}/ending.mp4"
+
+if [ -f "$PROJECT_ENDING" ]; then
+  ENDING_PATH="$PROJECT_ENDING"
+  echo "プロジェクトのエンディング動画を使用: $ENDING_PATH"
+elif [ -f "$PLUGIN_ENDING" ]; then
+  ENDING_PATH="$PLUGIN_ENDING"
+  echo "プラグインのエンディング動画を使用: $ENDING_PATH"
+else
+  ENDING_PATH=""
+  echo "警告: エンディング動画が見つかりませんでした"
+  echo "  - プロジェクト: $PROJECT_ENDING"
+  echo "  - プラグイン: $PLUGIN_ENDING"
+fi
+```
 
 3. **動画の結合**
 
 ```bash
-# プラグインルートからエンディング動画のパスを設定
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
-ENDING_PATH="${PLUGIN_ROOT}/endings/${ASPECT_DIR}/ending.mp4"
-
-# エンディング動画が存在する場合のみ実行
-if [ -f "$ENDING_PATH" ]; then
-  # 結合用のリストファイルを作成
-  echo "file 'main_with_audio.mp4'" > concat_list.txt
-  echo "file '$ENDING_PATH'" >> concat_list.txt
+# エンディング動画が見つかった場合のみ結合
+if [ -n "$ENDING_PATH" ] && [ -f "$ENDING_PATH" ]; then
+  # 結合用のリストファイルを作成（絶対パスを使用）
+  echo "file '$(realpath main_with_audio.mp4)'" > concat_list.txt
+  echo "file '$(realpath "$ENDING_PATH")'" >> concat_list.txt
 
   # 動画を結合
   ffmpeg -f concat -safe 0 -i concat_list.txt \
@@ -238,10 +343,11 @@ if [ -f "$ENDING_PATH" ]; then
 
   # クリーンアップ
   rm concat_list.txt main_with_audio.mp4
+  echo "エンディング動画を結合しました: final_output.mp4"
 else
   # エンディング動画がない場合はそのまま使用
   mv main_with_audio.mp4 final_output.mp4
-  echo "警告: 対応するエンディング動画が見つかりませんでした: $ENDING_PATH"
+  echo "エンディング動画なしで完了: final_output.mp4"
 fi
 ```
 
